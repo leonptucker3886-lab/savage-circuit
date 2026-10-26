@@ -335,7 +335,7 @@ function hBar(x,y,w,h,f,c){X.fillStyle='#300';X.fillRect(x,y,w,h);X.fillStyle=c;
 
 window.__sc={get H(){return H_},startHorde,hTap,hUpd,hDraw,setSel(v){sel=v},setMode(v){mode=v},step,get hfx(){return hfx},get state(){return state},act,startMove,get P1(){return P1},get P2(){return P2},go,menuTap};
 </script><script>
-// ===== SAVAGE CIRCUIT: TACTICS (turn-based lanes mode) v0.5 =====
+// ===== SAVAGE CIRCUIT: TACTICS (turn-based lanes mode) v0.6 lore+cutscenes =====
 (function(){
 const TW=960,TH=540;
 const btn=document.createElement('div');
@@ -463,7 +463,7 @@ function power(u,s,t){let p=u.atk*s.p*(.9+Math.random()*.2);if(u.st.weak)p*=.7;i
 function dmg(t,v,col){t.hp-=v;t.fl=12;nums.push({x:t.x,y:t.y-90,v:'-'+v,c:col||'#fff',t:60});if(t.hp<=0&&!t.dead){t.hp=0;t.dead=1;sfx('ko');say(t.name+' DOWN!');for(let i=0;i<20;i++)fx.push(spark(t.x,t.y-40,t.d.c[1]));if(t.side)earned+=t.d.big?40:t.name==='CAPTAIN'?15:8;layout();}}
 function spark(x,y,c){const a=Math.random()*6.28,s=2+Math.random()*6;return{x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-2,c,t:30+Math.random()*20,r:2+Math.random()*4};}
 function use(u,si,t){const s=u.d.sk[si];busy=1;u.en-=s.e||0;if(s.cd)u.cd[si]=Math.max(1,s.cd-(u.cdr||0));if(si===0&&!u.side)u.en=Math.min(100,u.en+15);
- say(u.name+': '+s.n);const dir=u.side?-1:1;
+ say(u.name+': '+s.n);if((si===3&&!u.side&&ULTQ[u.name])||(u.d.big&&s.n==='Overload'))cutin={n:u.name,side:u.side,q:u.side?'Your sparks are mine.':ULTQ[u.name],s:s.n,t:0};const dir=u.side?-1:1;
  if(s.type==='melee'){u.ax=0;u.lunge={tx:t.x-dir*80,ty:t.y,t:0};sfx('whoosh');}else{u.cast=20;}
  setTimeout(()=>{let targets=[t];
   if(s.type==='lane')targets=alive(t.side).filter(x=>x.lane===t.lane);
@@ -486,7 +486,8 @@ function aiAct(){const u=cur;if(!u||u.dead){busy=0;return nextTurn();}
  if(!opts.length){const l=alive(0)[0]?.lane??1;busy=0;return moveLane(u,l);}
  opts.sort((a,b)=>b.sc-a.sc);const o=opts[0];if(u.d.sk[o.i].type!=='melee'||true){u.cd[o.i]=u.name==='GRUNT'?0:2;}use(u,o.i,o.t);}
 function end(win){scr='result';res=win?'VICTORY':'DEFEAT';sfx(win?'win':'lose');
- if(win){earned+=20+bi*15;}setC(getC()+earned);tt=0;}
+ if(win){earned+=20+bi*15;}setC(getC()+earned);tt=0;
+ if(win&&bi===2)playCut('ending',()=>{scr='result';});else if(!win)playCut('defeat',()=>{scr='result';});}
 // ---------- HAND-PAINTED ART (procedural brush strokes, cached) ----------
 const BG={};
 function rnd(a,b){return a+Math.random()*(b-a);}
@@ -527,6 +528,110 @@ function fig(u,t){const c=u.d.c,dir=u.side?-1:1,sc=u.d.big?1.45:1;let x=u.x,y=u.
  if(u.fl>0){X.globalAlpha=u.fl/14;X.globalCompositeOperation='lighter';sh('#fff',0,-50,28,46);X.globalCompositeOperation='source-over';u.fl--;}
  if(u.cast>0){X.globalCompositeOperation='lighter';X.globalAlpha=u.cast/20;sh(c[1],36,-60,14+20-u.cast,14+20-u.cast);X.globalCompositeOperation='source-over';u.cast--;}
  X.restore();}
+// ---------- v0.6 LORE ----------
+const LORE={
+ VOLT:{full:'Kai "VOLT" Arden',age:24,from:'The Spark Slums',q:'Speed is just patience you haven\'t learned yet.',
+  pers:'Cocky and quick-tongued. Secretly terrified of standing still.',want:'Free his sister Mira from the Circuit\'s debt cages.',
+  bio:['Kai wired stolen power lines for the Spark Slum gangs. One night a patch blew and the surge rewrote his nerves.','Now lightning answers him. The Circuit wants him as a battery. He wants Mira back.','He talks fast because silence lets him hear the hum in his bones.'],
+  bond:'Trusts GRAVEMAW like a wall. Suspects NYX knows more than she says.'},
+ GRAVEMAW:{full:'Brother Osric',age:51,from:'Ossuary Monastery, Dead Hills',q:'I have buried better men than you. I will not bury these.',
+  pers:'Slow to speak, slower to anger. A gentle giant with a heavy past.',want:'Atone for opening the monastery gates to CIRCUIT-9.',
+  bio:['Osric kept the Ossuary, where monks grew armour from the bones of their honoured dead.','CIRCUIT-9 promised to cure the plague. Osric opened the gates. It cured nothing. It took everyone.','He wears his brothers now, every spike a name. He guards the young because he failed the old.'],
+  bond:'Shields VOLT from his own recklessness. Fears where EMBERFANG\'s rage leads.'},
+ NYX:{full:'Dr. Nyxara Vale',age:29,from:'CIRCUIT-9 Research Wing',q:'I built the cage. I\'ll be the one who breaks it.',
+  pers:'Calm, precise, guarded. Kind in action, cold in words.',want:'Shut down CIRCUIT-9, the machine she helped design.',
+  bio:['Nyxara was the Circuit\'s brightest medic-engineer. She wrote the code that let CIRCUIT-9 "heal" a city.','Then she learned what healing meant: harvesting people into its core. She stole the shadow serum and ran.','The serum mends wounds and shows her the core\'s weak point. The team doesn\'t know she built it. Yet.'],
+  bond:'Sees her own guilt in GRAVEMAW. Calls EMBERFANG the only honest thing in the city.'},
+ EMBERFANG:{full:'Rhea Kozak',age:22,from:'Ember Pits, Foundry District',q:'You took my home. I\'ll take your whole circuit.',
+  pers:'Loud, loyal, all-in. Laughs in fights, cries alone.',want:'Revenge for the Foundry fire that killed her crew.',
+  bio:['Rhea ran with the Foundry crews: kids who worked lava vents for scrap and fought in the pits for coin.','CIRCUIT-9 flooded the Foundry with fire to clear ground for a new core. Her crew never got out.','The burns never healed. They glow. She learned to throw them back.'],
+  bond:'GRAVEMAW took a hit for her on day one: family. Thinks NYX is hiding something.'}};
+const CUTS={
+ prologue:[
+  {bg:2,who:null,l:'The city of Circuit never sleeps. Its towers hum on stolen power: the sparks of its own people.'},
+  {bg:2,who:'CIRCUIT-9',l:'Citizens. Remain calm. Your contribution to the Core is appreciated.'},
+  {bg:0,who:'VOLT',l:'Another district went dark last night. Third this week. It\'s feeding faster.'},
+  {bg:0,who:'GRAVEMAW',l:'Then we stop waiting. Four of us. Three lanes. One road to the Spire.'},
+  {bg:0,who:'EMBERFANG',l:'Finally! I\'ve been warming up for a year.'},
+  {bg:0,who:'NYX',l:'Grunts hold Sky Ridge, the Iron Road and the Ember Pit. Pick your lanes well. Each fights differently.'}],
+ b1:[
+  {bg:1,who:'EMBERFANG',l:'Ha! Grunts fold like wet scrap.'},
+  {bg:1,who:'NYX',l:'Those were drones. The Captains are people. Wired in, but people.'},
+  {bg:1,who:'GRAVEMAW',l:'Then we strike to stop them, not to end them. If we can.'},
+  {bg:1,who:'VOLT',l:'Mira\'s debt tag just pinged near the Spire. She\'s close. Move.'}],
+ b2:[
+  {bg:2,who:'CIRCUIT-9',l:'Nyxara. Welcome home. Did you tell them who wrote my heart?'},
+  {bg:2,who:'EMBERFANG',l:'...Doc? What is it talking about?'},
+  {bg:2,who:'NYX',l:'I designed it. I didn\'t know what it would become. I\'m the only one who knows where its core is weak.'},
+  {bg:2,who:'GRAVEMAW',l:'I opened a gate once, trusting a machine. Guilt is not a crime. Running is. You came back.'},
+  {bg:2,who:'VOLT',l:'Then lead us in, Doc. Nobody gets left behind.'}],
+ ending:[
+  {bg:2,who:null,l:'The Core Spire falls silent. One by one the districts light up, with their own power this time.'},
+  {bg:0,who:'VOLT',l:'Mira! She\'s okay. They\'re all walking out of the cages.'},
+  {bg:0,who:'EMBERFANG',l:'For the Foundry crew. Every last one.'},
+  {bg:0,who:'GRAVEMAW',l:'Rest now, brothers. The gate is closed.'},
+  {bg:0,who:'NYX',l:'...It left something in the code. A backup signal. This isn\'t over.'},
+  {bg:0,who:null,l:'SAVAGE CIRCUIT: CHAPTER ONE COMPLETE'}],
+ defeat:[{bg:2,who:'CIRCUIT-9',l:'Your sparks are bright. They will power me for years.'},{bg:2,who:'GRAVEMAW',l:'Up. All of you. We go again.'}]};
+const ULTQ={VOLT:'Out of patience!',GRAVEMAW:'For every name I carry!',NYX:'I wrote you. I can erase you.',EMBERFANG:'BURN WITH ME!'};
+const PC={};
+function portrait(name,x,y,w,h){const key=name+w+'x'+h;let c=PC[key];
+ if(!c){c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');const col=(HEROES[name]||FOES[name]).c;
+  const bg=g.createRadialGradient(w*.5,h*.4,5,w*.5,h*.5,h*.8);bg.addColorStop(0,col[1]);bg.addColorStop(.5,col[0]);bg.addColorStop(1,'#050308');g.fillStyle=bg;g.fillRect(0,0,w,h);
+  for(let i=0;i<70;i++)stroke(g,rnd(0,w),rnd(0,h),rnd(8,34)*w/200,rnd(3,8)*w/200,i%3?col[0]:col[1],.14);
+  const cx=w*.5,s=h/300;
+  const E=(px,py,rx,ry,cl,a,r)=>{g.globalAlpha=a==null?1:a;g.fillStyle=cl;g.beginPath();g.ellipse(cx+px*s,py*s,rx*s,ry*s,r||0,0,6.283);g.fill();g.globalAlpha=1;};
+  const P=(pts,cl,a)=>{g.globalAlpha=a==null?1:a;g.fillStyle=cl;g.beginPath();pts.forEach((p,i)=>i?g.lineTo(cx+p[0]*s,p[1]*s):g.moveTo(cx+p[0]*s,p[1]*s));g.closePath();g.fill();g.globalAlpha=1;};
+  if(name==='NYX')E(0,150,80,112,'#1a0c26');
+  if(name==='EMBERFANG')for(let i=0;i<9;i++)P([[-60+i*15,95],[-52+i*15,22-(i%3)*18],[-44+i*15,95]],i%2?'#ffd04a':'#ff5a1a',.9);
+  E(0,305,135,95,col[0]);E(0,295,112,72,col[1],.5);E(-72,245,48,32,col[0],1,.4);E(72,245,48,32,col[0],1,-.4);E(-60,236,30,14,col[2],.25,.4);
+  const skin={VOLT:'#e0b48c',GRAVEMAW:'#a8826a',NYX:'#dcc0d0',EMBERFANG:'#c8784a','CIRCUIT-9':'#2c3a40'}[name]||'#888';
+  E(0,215,28,30,'#2a1c18');E(0,140,58,72,skin);E(-16,126,38,52,'#fff',.14);E(22,162,30,40,'#000',.18);
+  for(let i=0;i<45;i++){g.globalAlpha=.07;g.fillStyle=i%2?'#fff':'#000';g.beginPath();g.ellipse(cx+rnd(-50,50)*s,rnd(80,205)*s,rnd(4,14)*s,rnd(2,6)*s,rnd(0,3),0,6.283);g.fill();}g.globalAlpha=1;
+  const eye=name==='CIRCUIT-9'?'#26e0c0':col[2];[-22,22].forEach(ex=>{E(ex,136,12,5,'#111');E(ex,136,5,4,eye);E(ex+2,134,2,2,'#fff');});
+  g.strokeStyle='#2a1810';g.lineCap='round';g.lineWidth=4*s;g.beginPath();g.moveTo(cx-38*s,118*s);g.lineTo(cx-10*s,124*s);g.moveTo(cx+38*s,118*s);g.lineTo(cx+10*s,124*s);g.stroke();
+  g.lineWidth=3*s;g.beginPath();g.moveTo(cx-14*s,183*s);g.quadraticCurveTo(cx,(name==='VOLT'||name==='EMBERFANG'?193:183)*s,cx+14*s,183*s);g.stroke();
+  if(name==='VOLT'){for(let i=0;i<8;i++)P([[-58+i*15,100],[-46+i*15,40-(i%2)*20],[-36+i*15,100]],i%2?'#4fa3ff':'#bfe6ff');g.strokeStyle='#bfe6ff';g.lineWidth=2*s;g.beginPath();g.moveTo(cx+40*s,120*s);g.lineTo(cx+50*s,140*s);g.lineTo(cx+44*s,146*s);g.lineTo(cx+56*s,170*s);g.stroke();}
+  if(name==='GRAVEMAW'){E(0,96,60,30,'#3a3a2e');for(let i=0;i<6;i++)P([[-50+i*20,95],[-42+i*20,40-(i%2)*14],[-34+i*20,95]],'#f2ead0');E(-30,165,10,26,'#5a3a2a',.5,.3);for(let i=0;i<5;i++)P([[-90+i*40,235],[-80+i*40,200],[-70+i*40,235]],'#f2ead0');}
+  if(name==='NYX'){P([[-60,100],[0,60],[60,100],[40,80],[-40,80]],'#2b1640');P([[-58,176],[58,176],[52,210],[-52,210]],col[1],.6);E(0,108,6,6,'#a35bd6');}
+  if(name==='EMBERFANG'){for(let i=0;i<4;i++)E(30,150+i*10,14-i*2,2,'#ffb04a',.8,.2);E(-40,250,30,20,'#ff7a2a',.35);}
+  if(name==='CIRCUIT-9'){E(0,138,62,76,'#101418',.6);P([[-40,128],[40,128],[36,144],[-36,144]],'#26e0c0',.9);E(0,250,24,24,'#26e0c0',.8);}
+  const v=g.createRadialGradient(w/2,h/2,h*.3,w/2,h/2,h*.75);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,.6)');g.fillStyle=v;g.fillRect(0,0,w,h);
+  PC[key]=c;}
+ X.drawImage(c,x,y);X.lineWidth=3;X.strokeStyle='#ffd27a';X.strokeRect(x,y,w,h);}
+let cutK=null,cutI=0,cutC=0,cutAfter=null,codexH='VOLT',cutin=null;
+function playCut(k,after){cutK=k;cutI=0;cutC=0;cutAfter=after;scr='cut';sfx('magic');}
+function cutNext(){const L=CUTS[cutK][cutI];if(cutC<L.l.length){cutC=L.l.length;return;}cutI++;cutC=0;if(cutI>=CUTS[cutK].length)return cutEnd();sfx('click');}
+function cutEnd(){const f=cutAfter;cutK=null;cutAfter=null;f&&f();}
+function wrap(s,x,y,mw,sz,col,lh){X.font='700 '+sz+'px Arial,sans-serif';const ws=s.split(' ');let line='',yy=y;X.textAlign='left';X.textBaseline='top';X.fillStyle=col;
+ ws.forEach(w=>{const t=line?line+' '+w:w;if(X.measureText(t).width>mw&&line){X.fillText(line,x,yy);line=w;yy+=lh;}else line=t;});if(line)X.fillText(line,x,yy);return yy+lh;}
+function drawCut(t){const L=CUTS[cutK][cutI];X.drawImage(paintBG(L.bg),0,0);
+ X.fillStyle='rgba(0,0,0,.35)';X.fillRect(0,0,TW,TH);X.fillStyle='#000';X.fillRect(0,0,TW,46);X.fillRect(0,TH-46,TW,46);
+ if(L.who){const px=HEROES[L.who]?40:TW-260;portrait(L.who,px,60,220,270);}
+ cutC=Math.min(L.l.length,cutC+1.2);if((cutC|0)%3===0&&cutC<L.l.length)sfx('tick');
+ const left=!L.who||HEROES[L.who];const bx=L.who?(left?280:40):80,bw=L.who?640:800;panel(bx,300,bw,140,'rgba(20,12,8,.92)','rgba(6,4,2,.92)');
+ if(L.who){txt(L.who,bx+20,322,18,(HEROES[L.who]||FOES[L.who]).c[2],'left');if(LORE[L.who])txt(LORE[L.who].full,bx+bw-20,322,11,'#ffe7c4','right');}
+ wrap(L.l.slice(0,cutC|0),bx+20,L.who?344:330,bw-40,17,'#fff',24);
+ if(cutC>=L.l.length&&t%40<26)txt('TAP ▶',bx+bw-50,420,12,'#ffd27a');
+ txt((cutI+1)+' / '+CUTS[cutK].length,TW/2,TH-23,12,'#aaa');button('skip',TW-130,6,120,34,'SKIP ▶▶','',true,'#444');}
+function drawCodex(t){X.drawImage(paintBG(1),0,0);X.fillStyle='rgba(0,0,0,.6)';X.fillRect(0,0,TW,TH);
+ txt('HEROES OF THE CIRCUIT',TW/2,30,26,'#ffd27a');
+ Object.keys(HEROES).forEach((h,i)=>button('c_'+h,40+i*180,54,170,38,h,'',true,codexH===h?'#c87a1e':'#3a2a1a'));
+ const H=HEROES[codexH],L=LORE[codexH];portrait(codexH,30,105,200,250);
+ txt(L.full,30,372,15,H.c[2],'left');txt(H.role,30,392,11,'#ffe7c4','left');txt('Age '+L.age+'  |  '+L.from,30,410,10,'#ccc','left');
+ const st=[['HP',H.hp,150],['ATK',H.atk,30],['DEF',H.def,16],['SPD',H.spd,16]];st.forEach((s,i)=>{const y=428+i*13;txt(s[0],30,y+4,9,'#fff','left');X.fillStyle='#222';X.fillRect(62,y,150,8);X.fillStyle=H.c[1];X.fillRect(62,y,150*s[1]/s[2],8);});
+ panel(250,105,680,355,'rgba(20,12,8,.9)','rgba(6,4,2,.9)');
+ X.font='italic 700 16px Georgia,serif';X.fillStyle='#ffd27a';X.textAlign='left';X.textBaseline='top';X.fillText('"'+L.q+'"',270,118);
+ let y=150;txt('STORY',270,y,13,'#ffd27a','left');y+=12;L.bio.forEach(p=>{y=wrap(p,270,y,640,13,'#f2e6d6',18)+4;});
+ txt('PERSONALITY',270,y+6,12,'#ffd27a','left');y=wrap(L.pers,270,y+16,640,12,'#f2e6d6',17);
+ txt('DRIVE',270,y+6,12,'#ffd27a','left');y=wrap(L.want,270,y+16,640,12,'#f2e6d6',17);
+ txt('BONDS',270,y+6,12,'#ffd27a','left');y=wrap(L.bond,270,y+16,640,12,'#f2e6d6',17);
+ txt('SIGNATURE: '+H.sk[3].n+' - '+H.sk[3].d.replace('ULTIMATE: ',''),270,y+10,11,H.c[2],'left');
+ button('back',TW-170,478,150,46,'BACK','',true,'#444');}
+function drawCutin(){if(!cutin)return;const c=cutin,k=c.t<12?c.t/12:c.t>58?(70-c.t)/12:1;X.globalAlpha=Math.max(0,k);
+ X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,170,TW,170);const col=(HEROES[c.n]||FOES[c.n]).c;X.fillStyle=col[1];X.fillRect(0,170,TW,4);X.fillRect(0,336,TW,4);
+ const px=c.side?TW-200-(1-k)*-200:(1-k)*-200+20;portrait(c.n,px,165,180,180);
+ txt(c.q,c.side?TW/2-90:TW/2+90,240,30,'#fff');txt(c.s,c.side?TW/2-90:TW/2+90,285,18,col[2]);X.globalAlpha=1;if(++c.t>70)cutin=null;}
 // ---------- UI ----------
 let BTN=[];
 function txt(s,x,y,sz,col,al){X.font='900 '+sz+'px Arial Black,Impact,sans-serif';X.textAlign=al||'center';X.textBaseline='middle';X.lineWidth=Math.max(3,sz/6);X.strokeStyle='#000';X.strokeText(s,x,y);X.fillStyle=col||'#fff';X.fillText(s,x,y);}
@@ -558,7 +663,7 @@ function drawMenu(t){X.drawImage(paintBG(0),0,0);X.fillStyle='rgba(0,0,0,.45)';X
  txt('SAVAGE CIRCUIT',TW/2,90,46,'#ffd27a');txt('TACTICS',TW/2,145,34,'#fff');txt('Turn-based lane battles: your team on the left, the enemy on the right',TW/2,190,14,'#ffe7c4');
  ['GRAVEMAW','EMBERFANG','VOLT','NYX'].forEach((h,i)=>{const u={name:h,d:HEROES[h],side:0,x:200+i*185,y:400,tx:200+i*185,ty:400,st:{},ph:i};fig(u,t);txt(h,u.x,425,13,'#fff');txt(HEROES[h].role,u.x,443,10,HEROES[h].c[2]);});
  button('go',TW/2-230,225,220,60,'START CAMPAIGN','3 battles + boss',true);button('tree',TW/2+10,225,220,60,'SKILL TREE','Coins: '+getC(),true,'#1e4a7a');
- button('exit',TW/2-80,470,160,46,'BACK','',true,'#444');}
+ button('codex',TW/2-110,295,220,46,'HEROES & STORIES','',true,'#5a2a6a');button('exit',TW/2-80,470,160,46,'BACK','',true,'#444');}
 function drawTree(t){X.drawImage(paintBG(1),0,0);X.fillStyle='rgba(0,0,0,.55)';X.fillRect(0,0,TW,TH);
  txt('SKILL TREE',TW/2,34,30,'#ffd27a');txt('Coins: '+getC(),860,34,16,'#ffe066');
  Object.keys(HEROES).forEach((h,i)=>button('h_'+h,40+i*180,62,170,40,h,'',true,treeH===h?'#c87a1e':'#3a2a1a'));
@@ -574,8 +679,8 @@ function drawResult(t){drawBattle(t);X.fillStyle='rgba(0,0,0,.6)';X.fillRect(0,0
  if(win&&!fin)button('next',TW/2-230,290,220,60,'NEXT BATTLE','',true);else button('retry',TW/2-230,290,220,60,fin?'PLAY AGAIN':'RETRY','',true);
  button('tree',TW/2+10,290,220,60,'SKILL TREE','spend coins',true,'#1e4a7a');button('menu',TW/2-80,380,160,46,'MENU','',true,'#444');}
 function tap(id){sfx('click');
- if(id==='exit'){stop();return;}if(id==='go'){bi=0;earned=0;newBattle();return;}if(id==='tree'){scr='tree';return;}if(id==='back'||id==='menu'||id==='quit'){scr='menu';return;}
- if(id==='next'){bi++;earned=0;newBattle();return;}if(id==='retry'){if(res==='VICTORY')bi=0;earned=0;newBattle();return;}
+ if(id==='exit'){stop();return;}if(id==='go'){bi=0;earned=0;playCut('prologue',newBattle);return;}if(id==='skip'){cutEnd();return;}if(id==='codex'){scr='codex';return;}if(id.startsWith('c_')){codexH=id.slice(2);return;}if(id==='tree'){scr='tree';return;}if(id==='back'||id==='menu'||id==='quit'){scr='menu';return;}
+ if(id==='next'){bi++;earned=0;playCut(bi===1?'b1':'b2',newBattle);return;}if(id==='retry'){if(res==='VICTORY')bi=0;earned=0;newBattle();return;}
  if(id.startsWith('h_')){treeH=id.slice(2);return;}
  if(id.startsWith('n_')){const[,b,k]=id.split('_').map(Number);if(getC()>=COST[k]&&tr(treeH)[b]===k){setC(getC()-COST[k]);tr(treeH)[b]++;saveT();sfx('magic');}return;}
  if(!cur||cur.side||busy)return;
@@ -583,10 +688,11 @@ function tap(id){sfx('click');
  if(id==='up')moveLane(cur,cur.lane-1);if(id==='dn')moveLane(cur,cur.lane+1);}
 cv.addEventListener('pointerdown',e=>{e.preventDefault();ai();const r=cv.getBoundingClientRect();const x=((e.clientX-r.left)*DPR-OX)/S,y=((e.clientY-r.top)*DPR-OY)/S;
  for(const b of BTN)if(x>b.x&&x<b.x+b.w&&y>b.y&&y<b.y+b.h){if(b.en)tap(b.id);return;}
+ if(scr==='cut'){cutNext();return;}
  if(scr==='battle'&&cur&&!cur.side&&!busy&&selSk>=0){const s=cur.d.sk[selSk];let best=null,bd=70;U.forEach(u=>{const d=Math.hypot(u.x-x,u.y-50-y);if(d<bd&&canT(s,cur,u)){bd=d;best=u;}});if(best){const i=selSk;selSk=-1;use(cur,i,best);}}});
 let T0=0;function loop(){if(!on)return;requestAnimationFrame(loop);T0++;music();BTN=[];X.setTransform(1,0,0,1,0,0);X.fillStyle='#000';X.fillRect(0,0,cv.width,cv.height);
  X.setTransform(S,0,0,S,OX+(shake>.5?(Math.random()-.5)*shake*S:0),OY);
- try{if(scr==='menu')drawMenu(T0);else if(scr==='tree')drawTree(T0);else if(scr==='battle')drawBattle(T0);else drawResult(T0);}catch(err){console.error(err);}}
+ try{if(scr==='menu')drawMenu(T0);else if(scr==='tree')drawTree(T0);else if(scr==='cut')drawCut(T0);else if(scr==='codex')drawCodex(T0);else if(scr==='battle'){drawBattle(T0);drawCutin();}else drawResult(T0);}catch(err){console.error(err);}}
 function start(){on=true;rs();cv.style.display='block';btn.style.display='none';ai();scr='menu';try{if(typeof AC!=='undefined'&&AC)AC.suspend();}catch(e){}loop();}
 function stop(){on=false;cv.style.display='none';try{if(A)A.close();A=null;}catch(e){}try{if(typeof AC!=='undefined'&&AC)AC.resume();}catch(e){}}
 window.SC_TACTICS={start,stop};
