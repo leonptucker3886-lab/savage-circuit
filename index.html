@@ -335,7 +335,7 @@ function hBar(x,y,w,h,f,c){X.fillStyle='#300';X.fillRect(x,y,w,h);X.fillStyle=c;
 
 window.__sc={get H(){return H_},startHorde,hTap,hUpd,hDraw,setSel(v){sel=v},setMode(v){mode=v},step,get hfx(){return hfx},get state(){return state},act,startMove,get P1(){return P1},get P2(){return P2},go,menuTap};
 </script><script>
-// ===== SAVAGE CIRCUIT: TACTICS (turn-based lanes mode) v0.7 digital army skins =====
+// ===== SAVAGE CIRCUIT: TACTICS (turn-based lanes mode) v0.9 RPG+ironman digital army skins =====
 (function(){
 const TW=960,TH=540;
 const btn=document.createElement('div');
@@ -433,17 +433,123 @@ function setC(v){localStorage.sc_coins=v;try{coins=v;}catch(e){}}
 function bonus(h){const b={atk:0,hp:0,def:0,ult:0,sguard:0,sen:0,cd:0,spd:0},r=tr(h);TREE.forEach((br,i)=>{for(let k=0;k<r[i];k++)b[br.t[k][1]]+=br.t[k][2];});return b;}
 // ---------- BATTLE ----------
 let scr='menu',U=[],turnQ=[],cur=null,selSk=-1,bi=0,msg='',msgT=0,fx=[],nums=[],busy=0,shake=0,res='',earned=0,treeH='VOLT',tt=0,moveMode=false;
+// ===== v0.9 RPG: levels, gear, objectives, goals, Ironman =====
+let RPG;try{RPG=JSON.parse(localStorage.sc_rpg||'');}catch(e){}
+if(!RPG||!RPG.h)RPG={h:{},inv:[],kills:0,stars:0,boss:0,ironWins:0,claimed:[],best:{}};
+let iron;try{iron=JSON.parse(localStorage.sc_iron||'');}catch(e){}
+if(!iron)iron={on:false,run:false,fallen:[],hp:{},bi:0};
+if(iron.live){iron.live=0;iron.run=false;iron.fallen=[];iron.hp={};iron.lost=1;}
+function saveR(){localStorage.sc_rpg=JSON.stringify(RPG);localStorage.sc_iron=JSON.stringify(iron);}
+const HN=['VOLT','GRAVEMAW','NYX','EMBERFANG'];
+function hr(h){return RPG.h[h]||(RPG.h[h]={lv:1,xp:0,g:[null,null,null]});}
+function xpNeed(lv){return 80+lv*60;}
+const SLOTS=['WEAPON','ARMOR','CHIP'],RAR=[['COMMON','#cfcfcf',1],['RARE','#4aa8ff',1.6],['EPIC','#c86aff',2.3],['LEGENDARY','#ffb02e',3.2]];
+const GN=[['Shock Blade','Bone Cleaver','Hex Staff','Ember Gauntlet','Arc Rifle'],['Ghost Weave','Ossuary Plate','Firewall Vest','Storm Mail','Null Cloak'],['Overclock Chip','Spark Core','Echo Chip','Vigil Module','Rage Driver']];
+function rollGear(boost){const r=Math.random()+boost,ri=r>1.25?3:r>.95?2:r>.65?1:0;const s=Math.floor(Math.random()*3),m=RAR[ri][2];
+ const g={s,r:ri,n:GN[s][Math.floor(Math.random()*5)]};if(s===0)g.atk=+(0.05*m).toFixed(2);else if(s===1){g.hp=+(0.06*m).toFixed(2);g.def=Math.round(m);}else{g.en=Math.round(8*m);g.spd=Math.round(m);}return g;}
+function gPow(g){return g?(g.atk||0)*100+(g.hp||0)*80+(g.def||0)*3+(g.en||0)*.6+(g.spd||0)*4:0;}
+function gDesc(g){const a=[];if(g.atk)a.push('+'+Math.round(g.atk*100)+'% ATK');if(g.hp)a.push('+'+Math.round(g.hp*100)+'% HP');if(g.def)a.push('+'+g.def+' DEF');if(g.en)a.push('+'+g.en+' EN');if(g.spd)a.push('+'+g.spd+' SPD');return a.join(', ');}
+function applyRPG(u){const r=hr(u.name),lv=r.lv-1;let ha=.06*lv,aa=.06*lv,df=Math.floor(lv/2),en=0,sp=Math.floor(lv/3);
+ r.g.forEach(g=>{if(!g)return;ha+=g.hp||0;aa+=g.atk||0;df+=g.def||0;en+=g.en||0;sp+=g.spd||0;});
+ u.mhp=Math.round(u.mhp*(1+ha));u.hp=u.mhp;u.atk*=1+aa;u.def+=df;u.en=Math.min(100,u.en+en);u.spd+=sp;u.lv=r.lv;}
+const OBJ=[
+ {id:'nodown',n:'No hero goes down',f:o=>!o.downs},
+ {id:'fast',n:'Win within 4 rounds',f:o=>o.round<=4},
+ {id:'ult',n:'Land an ultimate',f:o=>o.ults>0},
+ {id:'hp',n:'Finish with 60%+ team HP',f:o=>o.hpPct>=.6},
+ {id:'lanes',n:'Fight from all 3 lanes',f:o=>o.lanes.size>=3},
+ {id:'ember',n:'KO a foe in the EMBER PIT',f:o=>o.pitKO>0}];
+let ob=null,RR=null;
+function rpgStart(){const pick=OBJ.slice().sort(()=>Math.random()-.5).slice(0,3);ob={list:pick,round:0,ults:0,downs:0,lanes:new Set(),pitKO:0,hpPct:1};RR=null;
+ U.forEach(u=>{if(!u.side){applyRPG(u);if(iron.on&&iron.run&&bi>0&&iron.hp[u.name]!=null)u.hp=Math.max(1,Math.round(u.mhp*Math.min(1,iron.hp[u.name]+.25)));}
+  else if(iron.on){u.mhp=Math.round(u.mhp*1.2);u.hp=u.mhp;u.atk*=1.15;}});
+ if(iron.on){iron.run=true;iron.bi=bi;iron.live=1;iron.lost=0;saveR();}}
+function rpgEnd(win){if(!ob)return;const heroes=U.filter(u=>!u.side);ob.hpPct=heroes.reduce((a,u)=>a+u.hp,0)/heroes.reduce((a,u)=>a+u.mhp,0);
+ ob.downs=heroes.filter(u=>u.dead).length;RR={xp:0,ups:[],stars:0,loot:null,fallen:[],wipe:false,objs:ob.list.map(o=>({n:o.n,ok:win&&o.f(ob)}))};
+ RR.stars=RR.objs.filter(o=>o.ok).length;const mul=iron.on?2:1;
+ if(win){RR.xp=Math.round((50+bi*30+RR.stars*20)*mul);earned+=RR.stars*15;RPG.stars+=RR.stars;const k='b'+bi;RPG.best[k]=Math.max(RPG.best[k]||0,RR.stars);if(bi===2)RPG.boss++;
+  heroes.forEach(u=>{if(u.dead&&iron.on)return;const r=hr(u.name);r.xp+=RR.xp;while(r.xp>=xpNeed(r.lv)&&r.lv<15){r.xp-=xpNeed(r.lv);r.lv++;RR.ups.push(u.name+' LV '+r.lv);}});
+  if(Math.random()<.55+RR.stars*.15||bi===2){const g=rollGear(bi*.15+RR.stars*.08+(iron.on?.2:0));RR.loot=g;
+   const cand=heroes.filter(u=>!(iron.on&&u.dead)).sort((a,b)=>gPow(hr(a.name).g[g.s])-gPow(hr(b.name).g[g.s]))[0];
+   if(cand&&gPow(g)>gPow(hr(cand.name).g[g.s])){const old=hr(cand.name).g[g.s];if(old)RPG.inv.push(old);hr(cand.name).g[g.s]=g;RR.lootTo=cand.name;}else{RPG.inv.push(g);RR.lootTo='STASH';}
+   while(RPG.inv.length>12)RPG.inv.shift();}}
+ earned=Math.round(earned*mul);
+ if(iron.on){heroes.forEach(u=>{if(u.dead&&!iron.fallen.includes(u.name)){iron.fallen.push(u.name);RR.fallen.push(u.name);}iron.hp[u.name]=u.hp/u.mhp;});iron.live=0;
+  if(!win){RR.wipe=true;iron.run=false;iron.fallen=[];iron.hp={};}else if(bi===2){RPG.ironWins++;RR.ironWin=1;iron.run=false;iron.fallen=[];iron.hp={};}else iron.bi=bi+1;}
+ saveR();}
+function rpgKO(t){if(!ob)return;if(t.side){RPG.kills++;if(t.lane===2)ob.pitKO++;}}
+function rpgUlt(u,si){if(ob&&!u.side&&si===3)ob.ults++;}
+function rpgRound(){if(ob){ob.round++;U.forEach(u=>{if(!u.side&&!u.dead)ob.lanes.add(u.lane);});}}
+const GOALS=[
+ {n:'First Blood',d:'Defeat 25 enemies',f:()=>RPG.kills>=25,c:60},
+ {n:'Veteran',d:'Get any hero to level 5',f:()=>HN.some(h=>hr(h).lv>=5),c:100},
+ {n:'Star Collector',d:'Earn 15 objective stars',f:()=>RPG.stars>=15,c:120},
+ {n:'Perfect Op',d:'3 stars on the boss battle',f:()=>(RPG.best.b2||0)>=3,c:150},
+ {n:'Spire Breaker',d:'Defeat CIRCUIT-9',f:()=>RPG.boss>=1,c:100},
+ {n:'Full Kit',d:'Fill all 3 gear slots on one hero',f:()=>HN.some(h=>hr(h).g.every(Boolean)),c:120},
+ {n:'Legend Found',d:'Find a LEGENDARY item',f:()=>HN.some(h=>hr(h).g.some(g=>g&&g.r===3))||RPG.inv.some(g=>g.r===3),c:200},
+ {n:'IRONMAN',d:'Clear the campaign in Ironman mode',f:()=>RPG.ironWins>=1,c:500}];
+let rosH='VOLT';
+function drawRpgHud(){if(!ob||scr!=='battle')return;panel(TW-250,58,242,70,'rgba(20,12,6,.8)','rgba(8,4,2,.8)',iron.on?'#ff4a4a':'#ffd27a');
+ txt((iron.on?'IRONMAN | ':'')+'OBJECTIVES | ROUND '+Math.max(1,ob.round),TW-129,70,10,iron.on?'#ff8a8a':'#ffd27a');
+ ob.list.forEach((o,i)=>{const lv=o.id==='nodown'?!U.some(u=>!u.side&&u.dead):o.id==='fast'?(ob.round<=4?null:false):o.id==='ult'?(ob.ults>0||null):o.id==='lanes'?(ob.lanes.size>=3||null):o.id==='ember'?(ob.pitKO>0||null):null;
+  txt((lv===true?'[OK] ':lv===false?'[X] ':'[  ] ')+o.n,TW-244,88+i*14,10,lv===true?'#7dffa0':lv===false?'#ff8a8a':'#fff','left');});
+ if(iron.on&&iron.fallen.length)txt('FALLEN: '+iron.fallen.join(', '),TW-129,138,10,'#ff6a6a');}
+function drawRpgResult(){if(!RR)return;panel(40,434,TW-80,100,'rgba(20,12,6,.92)','rgba(8,4,2,.92)',iron.on?'#ff4a4a':'#ffd27a');
+ RR.objs.forEach((o,i)=>txt((o.ok?'* ':'- ')+o.n,60,452+i*18,12,o.ok?'#ffe066':'#888','left'));
+ txt('STARS '+RR.stars+'/3',60,512,13,'#ffd27a','left');
+ txt(RR.xp?'+'+RR.xp+' XP each'+(iron.on?' (x2 IRONMAN)':''):'No XP',360,452,13,'#7dd8ff','left');
+ if(RR.ups.length)txt('LEVEL UP: '+RR.ups.join(', '),360,472,11,'#7dffa0','left');
+ if(RR.loot){const R=RAR[RR.loot.r];txt('LOOT: '+R[0]+' '+RR.loot.n,360,494,12,R[1],'left');txt(gDesc(RR.loot)+'  ->  '+(RR.lootTo==='STASH'?'stash':'equipped on '+RR.lootTo),360,512,10,'#ffe7c4','left');}
+ if(RR.fallen.length)txt('FALLEN FOREVER: '+RR.fallen.join(', '),TW/2,268,14,'#ff6a6a');
+ if(RR.wipe){txt('IRONMAN RUN LOST - squad wiped',TW/2,268,16,'#ff4a4a');BTN=BTN.filter(b=>b.id!=='retry');}
+ if(RR.ironWin)txt('IRONMAN CAMPAIGN CLEARED!',TW/2,268,18,'#ffb02e');}
+function drawRoster(t){X.drawImage(paintBG(1),0,0);X.fillStyle='rgba(0,0,0,.6)';X.fillRect(0,0,TW,TH);
+ txt('SQUAD ROSTER',TW/2,34,30,'#ffd27a');
+ HN.forEach((h,i)=>button('r_'+h,30+i*130,62,122,40,h,'LV '+hr(h).lv,true,h===rosH?'#c87a1e':'#3a2a1a'));
+ const r=hr(rosH);try{portrait(rosH,40,118,170,210);}catch(e){}
+ txt(rosH+'  LV '+r.lv,240,128,22,'#fff','left');
+ X.fillStyle='#000';X.fillRect(240,148,300,12);X.fillStyle='#7dd8ff';X.fillRect(240,148,300*Math.min(1,r.xp/xpNeed(r.lv)),12);txt(r.xp+' / '+xpNeed(r.lv)+' XP',550,154,11,'#7dd8ff','left');
+ const lv=r.lv-1;txt('Level bonus: +'+Math.round(lv*6)+'% HP, +'+Math.round(lv*6)+'% ATK, +'+Math.floor(lv/2)+' DEF, +'+Math.floor(lv/3)+' SPD',240,178,12,'#ffe7c4','left');
+ SLOTS.forEach((s,k)=>{const g=r.g[k],y=200+k*44;panel(240,y,400,38,'#2a1a0e','#140a04',g?RAR[g.r][1]:'#555');txt(s,252,y+12,10,'#aaa','left');
+  txt(g?RAR[g.r][0]+' '+g.n:'- empty -',252,y+27,12,g?RAR[g.r][1]:'#666','left');if(g)txt(gDesc(g),630,y+27,10,'#ffe7c4','right');});
+ txt('STASH (tap to equip on '+rosH+')',660,128,12,'#ffd27a','left');
+ RPG.inv.slice(0,9).forEach((g,i)=>button('e_'+i,660,142+i*36,280,32,g.n,RAR[g.r][0]+' '+SLOTS[g.s]+' | '+gDesc(g),true,'#2a2a3a'));
+ if(!RPG.inv.length)txt('Empty: win battles to find gear',660,160,11,'#888','left');
+ txt('Kills '+RPG.kills+'   Stars '+RPG.stars+'   Boss kills '+RPG.boss+'   Ironman clears '+RPG.ironWins,TW/2,370,13,'#ffe7c4');
+ button('back',TW/2-80,470,160,46,'BACK','',true,'#444');}
+function drawGoals(t){X.drawImage(paintBG(2),0,0);X.fillStyle='rgba(0,0,0,.62)';X.fillRect(0,0,TW,TH);txt('GOALS',TW/2,34,30,'#ffd27a');
+ txt('Complete goals, then tap CLAIM for coins.  Coins: '+getC(),TW/2,62,12,'#ffe7c4');
+ GOALS.forEach((G,i)=>{const x=40+(i%2)*450,y=80+Math.floor(i/2)*86,ok=G.f(),cl=RPG.claimed.includes(i);
+  panel(x,y,430,76,cl?'#1a3a1e':'#2a1a0e',cl?'#0a1a0c':'#140a04',cl?'#7dffa0':ok?'#ffe066':'#666');
+  txt(G.n,x+14,y+22,16,cl?'#7dffa0':'#fff','left');txt(G.d,x+14,y+46,12,'#ffe7c4','left');txt(G.c+' coins',x+14,y+64,10,'#ffd27a','left');
+  if(ok&&!cl)button('cl_'+i,x+310,y+18,106,40,'CLAIM','',true,'#1e7a3a');else txt(cl?'DONE':'LOCKED',x+363,y+38,14,cl?'#7dffa0':'#777');});
+ button('back',TW/2-80,436,160,46,'BACK','',true,'#444');}
+function rpgMenu(){const ir=iron.on;button('roster',TW/2-345,350,220,44,'ROSTER & GEAR','levels, loot, stash',true,'#2a5a2a');button('goals',TW/2-110,350,220,44,'GOALS',GOALS.filter((G,i)=>G.f()&&!RPG.claimed.includes(i)).length+' to claim',true,'#6a5a14');
+ button('iron',TW/2+125,350,220,44,ir?'IRONMAN: ON':'IRONMAN: OFF',ir?'permadeath, x2 rewards':'tap to enable',true,ir?'#8a1414':'#444');
+ if(iron.on&&iron.run)txt('IRONMAN RUN IN PROGRESS: battle '+(iron.bi+1)+'  fallen: '+(iron.fallen.join(', ')||'none'),TW/2,212,12,'#ff8a8a');
+ if(iron.lost)txt('Your last Ironman run was abandoned mid-battle and is lost.',TW/2,212,12,'#ff8a8a');}
+function rpgTap(id){
+ if(id==='roster'){scr='roster';return true;}if(id==='goals'){scr='goals';return true;}
+ if(id==='iron'){iron.on=!iron.on;if(!iron.on){iron.run=false;iron.fallen=[];iron.hp={};}iron.lost=0;saveR();sfx(iron.on?'ko':'magic');return true;}
+ if(id.startsWith('r_')){rosH=id.slice(2);return true;}
+ if(id.startsWith('e_')){const i=+id.slice(2),g=RPG.inv[i];if(!g)return true;const r=hr(rosH),old=r.g[g.s];r.g[g.s]=g;RPG.inv.splice(i,1);if(old)RPG.inv.push(old);saveR();sfx('magic');return true;}
+ if(id.startsWith('cl_')){const i=+id.slice(3);if(GOALS[i].f()&&!RPG.claimed.includes(i)){RPG.claimed.push(i);setC(getC()+GOALS[i].c);saveR();sfx('win');}return true;}
+ if(id==='go'&&iron.on){if(iron.run&&iron.bi>0){bi=iron.bi;earned=0;newBattle();return true;}iron.fallen=[];iron.hp={};iron.run=false;return false;}
+ if(id==='retry'&&iron.on){if(RR&&RR.wipe){scr='menu';return true;}iron.fallen=[];iron.hp={};iron.run=false;}
+ return false;}
+
 function mk(name,def,side,lane){const b=side?{atk:0,hp:0,def:0,ult:0,sguard:0,sen:0,cd:0,spd:0}:bonus(name);
  const mhp=Math.round(def.hp*(1+b.hp)*(side?1+bi*.15:1));
  return{name,d:def,side,lane,hp:mhp,mhp,atk:def.atk*(1+b.atk),def:def.def+b.def,spd:def.spd+b.spd,ult:b.ult,cdr:b.cd,en:side?0:20+b.sen,cd:[0,0,0,0],st:{burn:0,stun:0,weak:0,guard:b.sguard?1:0},x:0,y:0,ax:0,fl:0,dead:0,ph:Math.random()*6};}
-function newBattle(){U=[];['GRAVEMAW','EMBERFANG','VOLT','NYX'].forEach((h,i)=>U.push(mk(h,HEROES[h],0,[2,2,1,0][i])));
+function newBattle(){U=[];['GRAVEMAW','EMBERFANG','VOLT','NYX'].forEach((h,i)=>{if(!(iron.on&&iron.run&&iron.fallen.includes(h)))U.push(mk(h,HEROES[h],0,[2,2,1,0][i]));});
  BATTLES[bi].forEach((f,i)=>U.push(mk(f,FOES[f],1,f==='CIRCUIT-9'?1:i%3)));
- mBoss=bi===2;layout();turnQ=[];cur=null;scr='battle';res='';say(bi===2?'BOSS: CIRCUIT-9':'BATTLE '+(bi+1)+' OF 3');nextTurn();}
+ rpgStart();mBoss=bi===2;layout();turnQ=[];cur=null;scr='battle';res='';say(bi===2?'BOSS: CIRCUIT-9':'BATTLE '+(bi+1)+' OF 3');nextTurn();}
 function layout(){for(let s=0;s<2;s++)for(let l=0;l<3;l++){const g=U.filter(u=>u.side===s&&u.lane===l&&!u.dead);g.forEach((u,i)=>{u.tx=s?640+i*85+(u.d.big?40:0):300-i*85;u.ty=LY[l]-(i%2)*8;if(!u.x){u.x=u.tx;u.y=u.ty;}});}}
 function alive(s){return U.filter(u=>u.side===s&&!u.dead);}
 function say(m){msg=m;msgT=110;}
 function nextTurn(){if(!alive(1).length)return end(true);if(!alive(0).length)return end(false);
- if(!turnQ.length)turnQ=U.filter(u=>!u.dead).sort((a,b)=>b.spd-a.spd+(Math.random()-.5));
+ if(!turnQ.length){rpgRound();}if(!turnQ.length)turnQ=U.filter(u=>!u.dead).sort((a,b)=>b.spd-a.spd+(Math.random()-.5));
  cur=turnQ.shift();if(cur.dead)return nextTurn();
  // start-of-turn: energy, cooldowns, burn
  cur.en=Math.min(100,cur.en+20);cur.cd=cur.cd.map(c=>Math.max(0,c-1));
@@ -460,9 +566,9 @@ function canT(s,u,t){if(!s)return false;if(s.type==='melee'){if(t.side===u.side|
 function power(u,s,t){let p=u.atk*s.p*(.9+Math.random()*.2);if(u.st.weak)p*=.7;if(s.n===u.d.sk[3]?.n&&!u.side)p*=1+u.ult;
  if(s.type==='melee'&&u.lane===0)p*=.75;if(s.type==='ranged'&&u.lane===0)p*=1.25;if(u.lane===2||t.lane===2)p*=1.25;
  let red=t.def;if(t.st.guard)p*=t.lane===1?.25:.5;return Math.max(1,Math.round(p-red*.6));}
-function dmg(t,v,col){t.hp-=v;t.fl=12;nums.push({x:t.x,y:t.y-90,v:'-'+v,c:col||'#fff',t:60});if(t.hp<=0&&!t.dead){t.hp=0;t.dead=1;sfx('ko');say(t.name+' DOWN!');for(let i=0;i<20;i++)fx.push(spark(t.x,t.y-40,t.d.c[1]));if(t.side)earned+=t.d.big?40:t.name==='CAPTAIN'?15:8;layout();}}
+function dmg(t,v,col){t.hp-=v;t.fl=12;nums.push({x:t.x,y:t.y-90,v:'-'+v,c:col||'#fff',t:60});if(t.hp<=0&&!t.dead){t.hp=0;t.dead=1;sfx('ko');say(t.name+' DOWN!');for(let i=0;i<20;i++)fx.push(spark(t.x,t.y-40,t.d.c[1]));rpgKO(t);if(t.side)earned+=t.d.big?40:t.name==='CAPTAIN'?15:8;layout();}}
 function spark(x,y,c){const a=Math.random()*6.28,s=2+Math.random()*6;return{x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-2,c,t:30+Math.random()*20,r:2+Math.random()*4};}
-function use(u,si,t){const s=u.d.sk[si];busy=1;u.en-=s.e||0;if(s.cd)u.cd[si]=Math.max(1,s.cd-(u.cdr||0));if(si===0&&!u.side)u.en=Math.min(100,u.en+15);
+function use(u,si,t){const s=u.d.sk[si];busy=1;rpgUlt(u,si);u.en-=s.e||0;if(s.cd)u.cd[si]=Math.max(1,s.cd-(u.cdr||0));if(si===0&&!u.side)u.en=Math.min(100,u.en+15);
  say(u.name+': '+s.n);if((si===3&&!u.side&&ULTQ[u.name])||(u.d.big&&s.n==='Overload'))cutin={n:u.name,side:u.side,q:u.side?'Your sparks are mine.':ULTQ[u.name],s:s.n,t:0};const dir=u.side?-1:1;
  if(s.type==='melee'){u.ax=0;u.lunge={tx:t.x-dir*80,ty:t.y,t:0};sfx('whoosh');}else{u.cast=20;}
  setTimeout(()=>{let targets=[t];
@@ -486,7 +592,7 @@ function aiAct(){const u=cur;if(!u||u.dead){busy=0;return nextTurn();}
  if(!opts.length){const l=alive(0)[0]?.lane??1;busy=0;return moveLane(u,l);}
  opts.sort((a,b)=>b.sc-a.sc);const o=opts[0];if(u.d.sk[o.i].type!=='melee'||true){u.cd[o.i]=u.name==='GRUNT'?0:2;}use(u,o.i,o.t);}
 function end(win){scr='result';res=win?'VICTORY':'DEFEAT';sfx(win?'win':'lose');
- if(win){earned+=20+bi*15;}setC(getC()+earned);tt=0;
+ if(win){earned+=20+bi*15;}rpgEnd(win);setC(getC()+earned);tt=0;
  if(win&&bi===2)playCut('ending',()=>{scr='result';});else if(!win)playCut('defeat',()=>{scr='result';});}
 // ---------- HAND-PAINTED ART (procedural brush strokes, cached) ----------
 const BG={};
@@ -692,9 +798,9 @@ function drawBattle(t){X.drawImage(paintBG(bi),0,0);
  if(shake>0)shake*=.85;}
 function drawMenu(t){X.drawImage(paintBG(0),0,0);X.fillStyle='rgba(0,0,0,.45)';X.fillRect(0,0,TW,TH);
  txt('SAVAGE CIRCUIT',TW/2,90,46,'#ffd27a');txt('TACTICS',TW/2,145,34,'#fff');txt('Turn-based lane battles: your team on the left, the enemy on the right',TW/2,190,14,'#ffe7c4');
- ['GRAVEMAW','EMBERFANG','VOLT','NYX'].forEach((h,i)=>{const u={name:h,d:HEROES[h],side:0,x:200+i*185,y:400,tx:200+i*185,ty:400,st:{},ph:i};fig(u,t);txt(h,u.x,425,13,'#fff');txt(HEROES[h].role,u.x,443,10,HEROES[h].c[2]);});
+ ['GRAVEMAW','EMBERFANG','VOLT','NYX'].forEach((h,i)=>{const u={name:h,d:HEROES[h],side:0,x:200+i*185,y:470,tx:200+i*185,ty:470,st:{},ph:i};fig(u,t);txt(h+' LV'+hr(h).lv,u.x,492,13,'#fff');txt(HEROES[h].role,u.x,510,10,HEROES[h].c[2]);});
  button('go',TW/2-230,225,220,60,'START CAMPAIGN','3 battles + boss',true);button('tree',TW/2+10,225,220,60,'SKILL TREE','Coins: '+getC(),true,'#1e4a7a');
- button('codex',TW/2-230,295,220,46,'HEROES & STORIES','',true,'#5a2a6a');button('skin',TW/2+10,295,220,46,skinOn?'SKIN: DIGITAL ARMY':'SKIN: CLASSIC','tap to switch',true,skinOn?'#0e5a4a':'#444');button('exit',TW/2-80,470,160,46,'BACK','',true,'#444');}
+ button('codex',TW/2-230,295,220,46,'HEROES & STORIES','',true,'#5a2a6a');button('skin',TW/2+10,295,220,46,skinOn?'SKIN: DIGITAL ARMY':'SKIN: CLASSIC','tap to switch',true,skinOn?'#0e5a4a':'#444');rpgMenu();button('exit',12,12,110,40,'BACK','',true,'#444');}
 function drawTree(t){X.drawImage(paintBG(1),0,0);X.fillStyle='rgba(0,0,0,.55)';X.fillRect(0,0,TW,TH);
  txt('SKILL TREE',TW/2,34,30,'#ffd27a');txt('Coins: '+getC(),860,34,16,'#ffe066');
  Object.keys(HEROES).forEach((h,i)=>button('h_'+h,40+i*180,62,170,40,h,'',true,treeH===h?'#c87a1e':'#3a2a1a'));
@@ -708,8 +814,8 @@ function drawTree(t){X.drawImage(paintBG(1),0,0);X.fillStyle='rgba(0,0,0,.55)';X
 function drawResult(t){drawBattle(t);X.fillStyle='rgba(0,0,0,.6)';X.fillRect(0,0,TW,TH);BTN=[];
  const win=res==='VICTORY',fin=win&&bi===2;txt(fin?'CIRCUIT-9 DESTROYED':res,TW/2,170,48,win?'#ffd27a':'#ff5a5a');txt('+'+earned+' coins   (total '+getC()+')',TW/2,230,18,'#ffe066');
  if(win&&!fin)button('next',TW/2-230,290,220,60,'NEXT BATTLE','',true);else button('retry',TW/2-230,290,220,60,fin?'PLAY AGAIN':'RETRY','',true);
- button('tree',TW/2+10,290,220,60,'SKILL TREE','spend coins',true,'#1e4a7a');button('menu',TW/2-80,380,160,46,'MENU','',true,'#444');}
-function tap(id){sfx('click');
+ button('tree',TW/2+10,290,220,60,'SKILL TREE','spend coins',true,'#1e4a7a');button('menu',TW/2-80,380,160,46,'MENU','',true,'#444');drawRpgResult();if(RR&&RR.wipe){panel(TW/2-230,290,220,60,'#2a0606','#100202','#ff4a4a');txt('RUN OVER',TW/2-120,320,18,'#ff6a6a');}}
+function tap(id){sfx('click');if(rpgTap(id))return;
  if(id==='exit'){stop();return;}if(id==='go'){bi=0;earned=0;playCut('prologue',newBattle);return;}if(id==='skip'){cutEnd();return;}if(id==='codex'){scr='codex';return;}if(id==='skin'){skinOn=!skinOn;try{localStorage.setItem('sc_skin',skinOn?'1':'0');}catch(e){}applySkin();sfx('magic');return;}if(id.startsWith('c_')){codexH=id.slice(2);return;}if(id==='tree'){scr='tree';return;}if(id==='back'||id==='menu'||id==='quit'){scr='menu';return;}
  if(id==='next'){bi++;earned=0;playCut(bi===1?'b1':'b2',newBattle);return;}if(id==='retry'){if(res==='VICTORY')bi=0;earned=0;newBattle();return;}
  if(id.startsWith('h_')){treeH=id.slice(2);return;}
@@ -723,7 +829,7 @@ cv.addEventListener('pointerdown',e=>{e.preventDefault();ai();const r=cv.getBoun
  if(scr==='battle'&&cur&&!cur.side&&!busy&&selSk>=0){const s=cur.d.sk[selSk];let best=null,bd=70;U.forEach(u=>{const d=Math.hypot(u.x-x,u.y-50-y);if(d<bd&&canT(s,cur,u)){bd=d;best=u;}});if(best){const i=selSk;selSk=-1;use(cur,i,best);}}});
 let T0=0;function loop(){if(!on)return;requestAnimationFrame(loop);T0++;music();BTN=[];X.setTransform(1,0,0,1,0,0);X.fillStyle='#000';X.fillRect(0,0,cv.width,cv.height);
  X.setTransform(S,0,0,S,OX+(shake>.5?(Math.random()-.5)*shake*S:0),OY);
- try{if(scr==='menu')drawMenu(T0);else if(scr==='tree')drawTree(T0);else if(scr==='cut')drawCut(T0);else if(scr==='codex')drawCodex(T0);else if(scr==='battle'){drawBattle(T0);drawCutin();}else drawResult(T0);}catch(err){console.error(err);}}
+ try{if(scr==='menu')drawMenu(T0);else if(scr==='tree')drawTree(T0);else if(scr==='cut')drawCut(T0);else if(scr==='codex')drawCodex(T0);else if(scr==='roster')drawRoster(T0);else if(scr==='goals')drawGoals(T0);else if(scr==='battle'){drawBattle(T0);drawRpgHud();drawCutin();}else drawResult(T0);}catch(err){console.error(err);}}
 function start(){on=true;rs();cv.style.display='block';btn.style.display='none';ai();scr='menu';try{if(typeof AC!=='undefined'&&AC)AC.suspend();}catch(e){}loop();}
 function stop(){on=false;cv.style.display='none';try{if(A)A.close();A=null;}catch(e){}try{if(typeof AC!=='undefined'&&AC)AC.resume();}catch(e){}}
 window.SC_TACTICS={start,stop};
